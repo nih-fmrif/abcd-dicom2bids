@@ -31,6 +31,7 @@ import argparse
 import stat
 import fileinput
 import getpass
+import random # for random proxy
 from subprocess import call
 try:
     import ConfigParser
@@ -111,6 +112,10 @@ def write_s3cmd_config(config_dir, config_file):
         config_s3cmd.add_section('default')
     print('Updating access keys and token for {} profile in {}'.format('default', os.path.normpath(config_dir + config_file)))
 
+    # grab a random proxy server
+    proxies = ['dtn01-e0','dtn02-e0','dtn03-e0','dtn04-e0','dtn05-e0','dtn06-e0','dtn07-e0','dtn08-e0','dtn09-e0','dtn10-e0']
+    proxy = random.choice(proxies)
+
     s3cmd_info = {
         'access_key': myvars["accessKey"],
         'secret_key': myvars["secretKey"],
@@ -142,8 +147,8 @@ def write_s3cmd_config(config_dir, config_file):
         'multipart_copy_size': '15728640',
         'preserve_attrs': 'True',
         'progress_meter': 'True',
-        'proxy_host': '',
-        'proxy_port': '0',
+        'proxy_host': proxy,
+        'proxy_port': '3128',
         'recursive': 'False',
         'recv_chunk': '4096',
         'reduced_redundancy': 'False',
