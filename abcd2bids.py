@@ -57,7 +57,7 @@ TEMP_FILES_DIR = os.path.join(PWD, "temp")
 UNPACK_AND_SETUP = os.path.join(PWD, "src", "unpack_and_setup.sh")
 UNPACKED_FOLDER = os.path.join(PWD, "data")
 MODALITIES = ['anat', 'func', 'dwi']
-SESSIONS = ['baseline_year_1_arm_1', '2_year_follow_up_y_arm_1', '4YearFollowUpYArm1']
+SESSIONS = ['baseline_year_1_arm_1', '2_year_follow_up_y_arm_1', '4_year_follow_up_y_arm_1']
 
 
 def main():
