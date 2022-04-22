@@ -126,7 +126,13 @@ parser.add_argument('-o', '--output-dir', metavar='DIRECTORY', required=True,
 
 parser.add_argument('-t', '--types', metavar='TYPE', required=True,
                     nargs='+', choices=DATATYPES.keys(),
-                    help='Space-separated list of data types to subset.  Pick one or more: ' + ', '.join(DATATYPES.keys()))
+                    help="""
+                        Space-separated list of data types to subset.  Pick 
+                        one or more: """ + ', '.join(DATATYPES.keys())
+                    )
+
+parser.add_argument('-g', '--good-qc', action='store_true',
+                    help='Only keep data flagged as "good" (ftq_usable==1).')
 
 args = parser.parse_args()
 
@@ -159,11 +165,22 @@ for recall_idx, recall_col in enumerate(abcd_lines[0].split('\t')):
         print('ftq_recall_reason is in the 1-indexed column: ' + str(recall_idx+1))
         break
 
+for usable_idx, usable_col in enumerate(abcd_lines[0].split('\t')):
+    if 'ftq_usable' in usable_col:
+        print('ftq_usable is in the 1-indexed column: ' + str(usable_idx+1))
+        break
+
 ftq_series_id_dict = {}
 for line in abcd_lines[2:]:
     ftq_series_id = line.split('\t')[series_idx].strip('"')
     ftq_recall_reason = line.split('\t')[recall_idx].strip('"')
+    ftq_usable = line.split('\t')[usable_idx].strip('"')
     if ftq_recall_reason == '':
+        if args.good_qc:
+            if ftq_usable == "1":
+                pass
+            else:
+                continue
         ftq_series_id_dict[ftq_series_id] = line
 
 # create output directories
