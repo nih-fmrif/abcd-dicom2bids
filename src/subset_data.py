@@ -1,7 +1,7 @@
 #! /usr/bin/env python3
 
 """
-A tool to subset the ABCC data to a smaller set of datatypes.
+A tool to subset the ABCD full data set to a smaller subset of datatypes.
 
 Created  2/15/2022 by Eric Earl <eric.earl@nih.gov>
 """
@@ -106,8 +106,8 @@ from glob import glob # For globbing file names
 HERE = os.path.dirname(os.path.realpath(__file__))
 
 __doc__ = """
-This command-line tool allows the user to easily subset a directory of ABCC BIDS
-input data by datatype (T1, T2, fMRI, field maps).
+This command-line tool allows the user to easily subset a directory of ABCD-BIDS
+input data by datatype (T1, T2, fMRI, field maps, etc).
 """
 
 parser = argparse.ArgumentParser(description=__doc__)
@@ -149,15 +149,22 @@ subsets = sorted(list(datatypes))
 with open(args.abcd, 'r') as f:
     abcd_lines = f.readlines()
 
-for index, column in enumerate(abcd_lines[0].split('\t')):
-    if 'ftq_series_id' in column:
-        print('ftq_series_id is in the 1-indexed column: ' + str(index+1))
+for series_idx, series_col in enumerate(abcd_lines[0].split('\t')):
+    if 'ftq_series_id' in series_col:
+        print('ftq_series_id is in the 1-indexed column: ' + str(series_idx+1))
+        break
+
+for recall_idx, recall_col in enumerate(abcd_lines[0].split('\t')):
+    if 'ftq_recall_reason' in recall_col:
+        print('ftq_recall_reason is in the 1-indexed column: ' + str(recall_idx+1))
         break
 
 ftq_series_id_dict = {}
 for line in abcd_lines[2:]:
-    ftq_series_id = line.split('\t')[index].strip('"')
-    ftq_series_id_dict[ftq_series_id] = line
+    ftq_series_id = line.split('\t')[series_idx].strip('"')
+    ftq_recall_reason = line.split('\t')[recall_idx].strip('"')
+    if ftq_recall_reason == '':
+        ftq_series_id_dict[ftq_series_id] = line
 
 # create output directories
 print(datetime.now(), 'Creating subset directory:', output_dir)
@@ -184,24 +191,3 @@ with open(subset_qc_file, 'w') as f:
     f.write(abcd_lines[1])
     for ftq_series_id in list(final_subset):
         f.write(ftq_series_id_dict[ftq_series_id])
-
-# abcd_df = pandas.read_csv(args.abcd, sep='\t', header=0, skiprows=[1])
-
-# with open(input_csv, 'r') as f:
-#     reader = csv.DictReader(f)
-#     for series in reader:
-#         # read columns from CSV file
-#         datatype = series['image_description']
-#         subject = series['src_subject_id']
-#         visit = series['EventName']
-#         age_months = series['SeriesTime']
-#         sex = series['sex']
-#         timestamp = series['image_timestamp']
-#         image_file = series['image_file']
-#         usable = series['QC']
-#         compliant = series['ABCD_Compliant']
-#         complete = series['ftq_complete']
-#         quality = series['ftq_quality']
-#         recalled = series['ftq_recalled']
-#         recall_reason = series['ftq_recall_reason']
-#         notes = series['ftq_notes']
