@@ -141,7 +141,6 @@ parser.add_argument('-f', '--intended-for', action='store_true',
 
 args = parser.parse_args()
 
-input_txt = os.path.abspath(args.abcd)
 
 # only for testing
 # input_dir = os.path.abspath(args.input_dir)
@@ -149,6 +148,7 @@ input_dir = os.path.abspath('/data/ABCD_DSST/ABCD_BIDS/fast_track')
 
 rawdata = os.path.join(input_dir, 'rawdata')
 sourcedata = os.path.join(input_dir, 'sourcedata')
+input_txt = os.path.abspath(args.abcd)
 pickle_file = os.path.abspath(args.pickle_file)
 output_dir = os.path.abspath(args.output_dir)
 
@@ -233,25 +233,25 @@ for subset in subsets:
         for fmap_dir in fmap_dirs:
             func_fmap_jsons + glob(os.path.join(fmap_dir, '*_acq-func_*.json'))
 
-# all fmaps
-fmaps = dwi_fmap_jsons + func_fmap_jsons
+# all fmap JSONs
+fmap_jsons = dwi_fmap_jsons + func_fmap_jsons
 
 # in the case of IntendedFor...
-final_fmaps = []
+final_fmap_jsons = []
 if args.intended_for:
-    for fmap in fmaps:
-        with open(fmap, 'r') as f:
+    for fmap_json in fmap_jsons:
+        with open(fmap_json, 'r') as f:
             fmap_dict = json.load(f)
         if not fmap_dict['IntendedFor'] == []:
-            final_fmaps.append(fmap)
+            final_fmap_jsons.append(fmap_json)
 
-# if there was no args.intended_for flag provided final_fmaps is still empty
-if final_fmaps == []:
-    # so use all fmaps
-    final_fmaps = fmaps
+# if no args.intended_for flag was provided then final_fmap_jsons is still empty
+if final_fmap_jsons == []:
+    # so use all fmap_jsons
+    final_fmap_jsons = fmap_jsons
 
 # get the sourcedata
-print(datetime.now(), 'Collecting relevant sourcedata, if any')
+print(datetime.now(), 'Collecting relevant task-based fMRI E-Prime files, if any')
 sourcedata_dirs = sorted(glob(os.path.join(sourcedata, 'sub-*', 'ses-*', 'func')))
 sourcedata_txts = []
 for subset in subsets:
@@ -264,3 +264,55 @@ for subset in subsets:
     if subset == 'SST-fMRI':
         for sourcedata_dir in sourcedata_dirs:
             sourcedata_txts + glob(os.path.join(sourcedata_dir, '*_task-SST_*.txt'))
+
+# symlink the ftq_series_id mapped files
+print(datetime.now(), 'Symbolically linking func, dwi, and anat filesm if any')
+for ftq_series_id in list(final_subset):
+    if '-fMRI_' in ftq_series_id or '_ABCD-rsfMRI_' in ftq_series_id:
+        modality = 'func'
+    elif '_ABCD-DTI_' in ftq_series_id:
+        modality = 'dwi'
+    elif '_ABCD-T1' in ftq_series_id or '_ABCD-T2' in ftq_series_id:
+        modality = 'anat'
+
+    mapped_file_list = ftq_map_mapping[ftq_series_id]
+    subses_underscore_split = mapped_file[0].split('_')
+    subject = subses_underscore_split[0]
+    session = subses_underscore_split[1]
+    for mapped_file in mapped_file_list:
+        mapped_path = os.path.join(rawdata, subject, session, modality, mapped_file)
+        mapped_file_relpath = os.path.relpath(mapped_path, input_dir)
+        output_path = os.path.join(output_dir, mapped_file_relpath)
+        output_subdir = os.path.dirname(output_path)
+        os.makedirs(output_subdir, exist_ok=True)
+        os.symlink(mapped_path, output_path)
+
+# symlink the fmaps, if any
+print(datetime.now(), 'Symbolically linking fmap files, if any')
+for fmap_json in final_fmap_jsons:
+    fmap_nifti = fmap_json.replace('.json', '.nii.gz')
+    fmap_json_relpath = os.path.relpath(fmap_json, input_dir)
+    output_json = os.path.join(output_dir, fmap_json_relpath)
+    output_nifti = os.path.join(output_dir, fmap_json_relpath.replace('.json', '.nii.gz'))
+    output_subdir = os.path.dirname(output_json)
+    os.makedirs(output_subdir, exist_ok=True)
+    os.symlink(fmap_json, output_json)
+    os.symlink(fmap_nifti, output_nifti)
+    if '_acq-dwi_' in fmap_json:
+        fmap_bval = fmap_json.replace('.json', '.bval')
+        fmap_bvec = fmap_json.replace('.json', '.bvec')
+        output_bval = os.path.join(output_dir, fmap_json_relpath.replace('.json', '.bval'))
+        output_bvec = os.path.join(output_dir, fmap_json_relpath.replace('.json', '.bvec'))
+        os.symlink(fmap_bval, output_bval)
+        os.symlink(fmap_bvec, output_bvec)
+
+# symlink the sourcedata, if any
+print(datetime.now(), 'Symbolically linking task-based fMRI E-Prime files, if any')
+for sourcedata_txt in sourcedata_txts:
+    sourcedata_txt_relpath = os.path.relpath(sourcedata_txt, input_dir)
+    output_txt = os.path.join(output_dir, sourcedata_txt_relpath)
+    output_subdir = os.path.dirname(output_txt)
+    os.makedirs(output_subdir, exist_ok=True)
+    os.symlink(sourcedata_txt, output_txt)
+
+print(datetime.now(), 'All done!')
