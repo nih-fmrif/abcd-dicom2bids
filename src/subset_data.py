@@ -6,6 +6,18 @@ A tool to subset the ABCD full data set to a smaller subset of datatypes.
 Created  2/15/2022 by Eric Earl <eric.earl@nih.gov>
 """
 
+import argparse   # For command line arguments
+import csv        # For CSV file handling
+import json       # For BIDS sidecar JSON file handling
+import os         # For file system operations
+import pandas     # For text-file reading and dataframes
+import pickle
+import subprocess # For calling external programs
+
+from datetime import datetime # For timestamping
+from glob import glob # For globbing file names
+
+
 POSSIBLES = [
     "Diffusion-FM",
     "Diffusion-FM-AP",
@@ -92,16 +104,6 @@ DATATYPES = {
     ]
 }
 
-import argparse   # For command line arguments
-import csv        # For CSV file handling
-import os         # For file system operations
-import pandas     # For text-file reading and dataframes
-import pickle
-import subprocess # For calling external programs
-
-from datetime import datetime # For timestamping
-from glob import glob # For globbing file names
-
 
 HERE = os.path.dirname(os.path.realpath(__file__))
 
@@ -134,10 +136,19 @@ parser.add_argument('-t', '--types', metavar='TYPE', required=True,
 parser.add_argument('-g', '--good-qc', action='store_true',
                     help='Only keep data flagged as "good" (ftq_usable==1).')
 
+parser.add_argument('-f', '--intended-for', action='store_true',
+                    help='Only keep fmaps with non-empty IntendedFor fields.')
+
 args = parser.parse_args()
 
 input_txt = os.path.abspath(args.abcd)
+
+# only for testing
 # input_dir = os.path.abspath(args.input_dir)
+input_dir = os.path.abspath('/data/ABCD_DSST/ABCD_BIDS/fast_track')
+
+rawdata = os.path.join(input_dir, 'rawdata')
+sourcedata = os.path.join(input_dir, 'sourcedata')
 pickle_file = os.path.abspath(args.pickle_file)
 output_dir = os.path.abspath(args.output_dir)
 
@@ -208,3 +219,48 @@ with open(subset_qc_file, 'w') as f:
     f.write(abcd_lines[1])
     for ftq_series_id in list(final_subset):
         f.write(ftq_series_id_dict[ftq_series_id])
+
+# get the fmaps
+print(datetime.now(), 'Collecting relevant field maps, if any')
+fmap_dirs = sorted(glob(os.path.join(rawdata, 'sub-*', 'ses-*', 'fmap')))
+dwi_fmap_jsons = []
+func_fmap_jsons = []
+for subset in subsets:
+    if 'Diffusion-FM' in subset:
+        for fmap_dir in fmap_dirs:
+            dwi_fmap_jsons + glob(os.path.join(fmap_dir, '*_acq-dwi_*.json'))
+    if 'fMRI-FM' in subset:
+        for fmap_dir in fmap_dirs:
+            func_fmap_jsons + glob(os.path.join(fmap_dir, '*_acq-func_*.json'))
+
+# all fmaps
+fmaps = dwi_fmap_jsons + func_fmap_jsons
+
+# in the case of IntendedFor...
+final_fmaps = []
+if args.intended_for:
+    for fmap in fmaps:
+        with open(fmap, 'r') as f:
+            fmap_dict = json.load(f)
+        if not fmap_dict['IntendedFor'] == []:
+            final_fmaps.append(fmap)
+
+# if there was no args.intended_for flag provided final_fmaps is still empty
+if final_fmaps == []:
+    # so use all fmaps
+    final_fmaps = fmaps
+
+# get the sourcedata
+print(datetime.now(), 'Collecting relevant sourcedata, if any')
+sourcedata_dirs = sorted(glob(os.path.join(sourcedata, 'sub-*', 'ses-*', 'func')))
+sourcedata_txts = []
+for subset in subsets:
+    if subset == 'MID-fMRI':
+        for sourcedata_dir in sourcedata_dirs:
+            sourcedata_txts + glob(os.path.join(sourcedata_dir, '*_task-MID_*.txt'))
+    if subset == 'nBack-fMRI':
+        for sourcedata_dir in sourcedata_dirs:
+            sourcedata_txts + glob(os.path.join(sourcedata_dir, '*_task-nback_*.txt'))
+    if subset == 'SST-fMRI':
+        for sourcedata_dir in sourcedata_dirs:
+            sourcedata_txts + glob(os.path.join(sourcedata_dir, '*_task-SST_*.txt'))
