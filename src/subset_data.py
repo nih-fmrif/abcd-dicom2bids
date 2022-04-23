@@ -49,6 +49,16 @@ DATATYPES = {
         "Diffusion-FM-PA",
         "DTI",
     ],
+    "dwi_fmap": [
+        "Diffusion-FM",
+        "Diffusion-FM-AP",
+        "Diffusion-FM-PA"
+    ],
+    "func_fmap": [
+        "fMRI-FM",
+        "fMRI-FM-AP",
+        "fMRI-FM-PA"
+    ],
     "fmap": [
         "Diffusion-FM",
         "Diffusion-FM-AP",
@@ -222,16 +232,13 @@ with open(subset_qc_file, 'w') as f:
 
 # get the fmaps
 print(datetime.now(), 'Collecting relevant field maps, if any')
-fmap_dirs = sorted(glob(os.path.join(rawdata, 'sub-*', 'ses-*', 'fmap')))
 dwi_fmap_jsons = []
 func_fmap_jsons = []
 for subset in subsets:
     if 'Diffusion-FM' in subset:
-        for fmap_dir in fmap_dirs:
-            dwi_fmap_jsons + glob(os.path.join(fmap_dir, '*_acq-dwi_*.json'))
+        dwi_fmap_jsons + glob(os.path.join(rawdata, 'sub-*', 'ses-*', 'fmap', '*_acq-dwi_*.json'))
     if 'fMRI-FM' in subset:
-        for fmap_dir in fmap_dirs:
-            func_fmap_jsons + glob(os.path.join(fmap_dir, '*_acq-func_*.json'))
+        func_fmap_jsons + glob(os.path.join(rawdata, 'sub-*', 'ses-*', 'fmap', '*_acq-func_*.json'))
 
 # all fmap JSONs
 fmap_jsons = dwi_fmap_jsons + func_fmap_jsons
@@ -252,21 +259,17 @@ if final_fmap_jsons == []:
 
 # get the sourcedata
 print(datetime.now(), 'Collecting relevant task-based fMRI E-Prime files, if any')
-sourcedata_dirs = sorted(glob(os.path.join(sourcedata, 'sub-*', 'ses-*', 'func')))
 sourcedata_txts = []
 for subset in subsets:
     if subset == 'MID-fMRI':
-        for sourcedata_dir in sourcedata_dirs:
-            sourcedata_txts + glob(os.path.join(sourcedata_dir, '*_task-MID_*.txt'))
+        sourcedata_txts + glob(os.path.join(sourcedata, 'sub-*', 'ses-*', 'func', '*_task-MID_*.txt'))
     if subset == 'nBack-fMRI':
-        for sourcedata_dir in sourcedata_dirs:
-            sourcedata_txts + glob(os.path.join(sourcedata_dir, '*_task-nback_*.txt'))
+        sourcedata_txts + glob(os.path.join(sourcedata, 'sub-*', 'ses-*', 'func', '*_task-nback_*.txt'))
     if subset == 'SST-fMRI':
-        for sourcedata_dir in sourcedata_dirs:
-            sourcedata_txts + glob(os.path.join(sourcedata_dir, '*_task-SST_*.txt'))
+        sourcedata_txts + glob(os.path.join(sourcedata, 'sub-*', 'ses-*', 'func', '*_task-SST_*.txt'))
 
 # symlink the ftq_series_id mapped files
-print(datetime.now(), 'Symbolically linking func, dwi, and anat filesm if any')
+print(datetime.now(), 'Symbolically linking func, dwi, and anat files, if any')
 for ftq_series_id in list(final_subset):
     if '-fMRI_' in ftq_series_id or '_ABCD-rsfMRI_' in ftq_series_id:
         modality = 'func'
@@ -276,7 +279,7 @@ for ftq_series_id in list(final_subset):
         modality = 'anat'
 
     mapped_file_list = ftq_map_mapping[ftq_series_id]
-    subses_underscore_split = mapped_file[0].split('_')
+    subses_underscore_split = mapped_file_list[0].split('_')
     subject = subses_underscore_split[0]
     session = subses_underscore_split[1]
     for mapped_file in mapped_file_list:
