@@ -248,12 +248,13 @@ fmap_jsons_len = len(fmap_jsons)
 final_fmap_jsons = []
 if args.intended_for:
     print(datetime.now(), 'Selecting only fmaps with non-empty IntendedFor fields')
+    print(datetime.now(), 'This might take a while so please be patient...')
     for i, fmap_json in enumerate(fmap_jsons):
-        if i % 500 == 0:
-            print('Progress:', str(round(100*i/fmap_jsons_len)), '%')
+        if i % (round(fmap_jsons_len*0.05)) == 0:
+            print(datetime.now(), 'Progress:', str(round(100*i/fmap_jsons_len)), '%')
         with open(fmap_json, 'r') as f:
             fmap_dict = json.load(f)
-        if not fmap_dict['IntendedFor'] == []:
+        if 'IntendedFor' in fmap_dict and not fmap_dict['IntendedFor'] == []:
             final_fmap_jsons.append(fmap_json)
 
 # if no args.intended_for flag was provided then final_fmap_jsons is still empty
@@ -266,11 +267,11 @@ print(datetime.now(), 'Collecting relevant task-based fMRI E-Prime files, if any
 sourcedata_txts = []
 for subset in subsets:
     if subset == 'MID-fMRI':
-        sourcedata_txts + glob(os.path.join(sourcedata, 'sub-*', 'ses-*', 'func', '*_task-MID_*.txt'))
+        sourcedata_txts += glob(os.path.join(sourcedata, 'sub-*', 'ses-*', 'func', '*_task-MID_*.txt'))
     if subset == 'nBack-fMRI':
-        sourcedata_txts + glob(os.path.join(sourcedata, 'sub-*', 'ses-*', 'func', '*_task-nback_*.txt'))
+        sourcedata_txts += glob(os.path.join(sourcedata, 'sub-*', 'ses-*', 'func', '*_task-nback_*.txt'))
     if subset == 'SST-fMRI':
-        sourcedata_txts + glob(os.path.join(sourcedata, 'sub-*', 'ses-*', 'func', '*_task-SST_*.txt'))
+        sourcedata_txts += glob(os.path.join(sourcedata, 'sub-*', 'ses-*', 'func', '*_task-SST_*.txt'))
 
 # symlink the ftq_series_id mapped files
 print(datetime.now(), 'Symbolically linking func, dwi, and anat files, if any')
