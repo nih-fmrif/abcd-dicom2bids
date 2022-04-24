@@ -235,18 +235,22 @@ print(datetime.now(), 'Collecting relevant field maps, if any')
 dwi_fmap_jsons = []
 func_fmap_jsons = []
 for subset in subsets:
-    if 'Diffusion-FM' in subset:
-        dwi_fmap_jsons + glob(os.path.join(rawdata, 'sub-*', 'ses-*', 'fmap', '*_acq-dwi_*.json'))
-    if 'fMRI-FM' in subset:
-        func_fmap_jsons + glob(os.path.join(rawdata, 'sub-*', 'ses-*', 'fmap', '*_acq-func_*.json'))
+    if 'Diffusion-FM' in subset and dwi_fmap_jsons == []:
+        dwi_fmap_jsons = glob(os.path.join(rawdata, 'sub-*', 'ses-*', 'fmap', '*_acq-dwi_*.json'))
+    if 'fMRI-FM' in subset and func_fmap_jsons == []:
+        func_fmap_jsons = glob(os.path.join(rawdata, 'sub-*', 'ses-*', 'fmap', '*_acq-func_*.json'))
 
 # all fmap JSONs
 fmap_jsons = dwi_fmap_jsons + func_fmap_jsons
+fmap_jsons_len = len(fmap_jsons)
 
 # in the case of IntendedFor...
 final_fmap_jsons = []
 if args.intended_for:
-    for fmap_json in fmap_jsons:
+    print(datetime.now(), 'Selecting only fmaps with non-empty IntendedFor fields')
+    for i, fmap_json in enumerate(fmap_jsons):
+        if i % 500 == 0:
+            print('Progress:', str(round(100*i/fmap_jsons_len)), '%')
         with open(fmap_json, 'r') as f:
             fmap_dict = json.load(f)
         if not fmap_dict['IntendedFor'] == []:
