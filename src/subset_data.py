@@ -292,8 +292,11 @@ for ftq_series_id in list(final_subset):
         mapped_file_relpath = os.path.relpath(mapped_path, input_dir)
         output_path = os.path.join(output_dir, mapped_file_relpath)
         output_subdir = os.path.dirname(output_path)
-        os.makedirs(output_subdir, exist_ok=True)
-        os.symlink(mapped_path, output_path)
+        if os.path.exists(mapped_path):
+            os.makedirs(output_subdir, exist_ok=True)
+            os.symlink(mapped_path, output_path)
+        else:
+            print(datetime.now(), f'Does not exist so not symlinking: {mapped_path}')
 
 # symlink the fmaps, if any
 print(datetime.now(), 'Symbolically linking fmap files, if any')
@@ -304,15 +307,23 @@ for fmap_json in final_fmap_jsons:
     output_nifti = os.path.join(output_dir, fmap_json_relpath.replace('.json', '.nii.gz'))
     output_subdir = os.path.dirname(output_json)
     os.makedirs(output_subdir, exist_ok=True)
-    os.symlink(fmap_json, output_json)
-    os.symlink(fmap_nifti, output_nifti)
+    if os.path.exists(fmap_json) and os.path.exists(fmap_nifti):
+        os.symlink(fmap_json, output_json)
+        os.symlink(fmap_nifti, output_nifti)
+    else:
+        fmap_print = fmap_nifti.replace('nii.gz','{json,nii.gz}')
+        print(datetime.now(), f'One of JSON or NII.GZ do not exist so not symlinking either: {fmap_print}')
     if '_acq-dwi_' in fmap_json:
         fmap_bval = fmap_json.replace('.json', '.bval')
         fmap_bvec = fmap_json.replace('.json', '.bvec')
         output_bval = os.path.join(output_dir, fmap_json_relpath.replace('.json', '.bval'))
         output_bvec = os.path.join(output_dir, fmap_json_relpath.replace('.json', '.bvec'))
-        os.symlink(fmap_bval, output_bval)
-        os.symlink(fmap_bvec, output_bvec)
+        if os.path.exists(fmap_bval) and os.path.exists(fmap_bvec):
+            os.symlink(fmap_bval, output_bval)
+            os.symlink(fmap_bvec, output_bvec)
+        else:
+            bvxx_print = fmap_bval.replace('bval','{bval,bvec}')
+            print(datetime.now(), f'One of BVAL or BVEC do not exist so not symlinking either: {bvxx_print}')
 
 # symlink the sourcedata, if any
 print(datetime.now(), 'Symbolically linking task-based fMRI E-Prime files, if any')
@@ -320,7 +331,10 @@ for sourcedata_txt in sourcedata_txts:
     sourcedata_txt_relpath = os.path.relpath(sourcedata_txt, input_dir)
     output_txt = os.path.join(output_dir, sourcedata_txt_relpath)
     output_subdir = os.path.dirname(output_txt)
-    os.makedirs(output_subdir, exist_ok=True)
-    os.symlink(sourcedata_txt, output_txt)
+    if os.path.exists(sourcedata_txt):
+        os.makedirs(output_subdir, exist_ok=True)
+        os.symlink(sourcedata_txt, output_txt)
+    else:
+        print(datetime.now(), f'Does not exist so not symlinking: {sourcedata_txt}')
 
 print(datetime.now(), 'All done!')
