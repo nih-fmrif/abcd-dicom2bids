@@ -225,11 +225,11 @@ final_subset = subset_ftq_series_ids & all_ftq_series_ids
 subset_qc_file = output_dir + '.abcd_fastqc01.txt'
 print(datetime.now(), 'Creating subset QC file:', subset_qc_file)
 with open(subset_qc_file, 'w') as f:
-    f.write('related\t' + abcd_lines[0])
-    f.write('Related BIDS NIfTI file\t' + abcd_lines[1])
+    f.write('"related"\t' + abcd_lines[0])
+    f.write('"Related BIDS NIfTI file"\t' + abcd_lines[1])
     for ftq_series_id in list(final_subset):
         related_nifti = [f for f in ftq_map_mapping[ftq_series_id] if f.endswith('.nii.gz')][0]
-        f.write(related_nifti + '\t' + ftq_series_id_dict[ftq_series_id])
+        f.write('"' + related_nifti + '"\t' + ftq_series_id_dict[ftq_series_id])
 
 # get the fmaps
 print(datetime.now(), 'Collecting relevant field maps, if any')
