@@ -11,11 +11,11 @@ import csv        # For CSV file handling
 import json       # For BIDS sidecar JSON file handling
 import os         # For file system operations
 import pandas     # For text-file reading and dataframes
-import pickle
+import pickle     # For extracting pickle file data
 import subprocess # For calling external programs
 
-from datetime import datetime # For timestamping
-from glob import glob # For globbing file names
+from datetime import datetime # For timestamping print statements
+from glob import glob # For "globbing" file names
 
 
 POSSIBLES = [
