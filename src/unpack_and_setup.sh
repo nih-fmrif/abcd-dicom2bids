@@ -102,6 +102,9 @@ if [ -e ${TempSubjectDir}/DCMs/${SUB}/${VISIT}/dwi ]; then
         orig_bval=`echo $dwi | sed 's|.nii.gz|.bval|'`
         orig_bvec=`echo $dwi | sed 's|.nii.gz|.bvec|'`
         
+        export PATH="/data/NIMH_scratch/zwallymi/abcd-dicom2bids/abcd_env/dcmtk-3.6.6-linux-x86_64-static/bin":$PATH
+        #echo `dcmdump --search 0008,0070 ${first_dcm}`
+
         if [[ `dcmdump --search 0008,0070 ${first_dcm} 2>/dev/null` == *GE* ]]; then 
             if dcmdump --search 0018,1020 ${first_dcm} 2>/dev/null | grep -q DV25; then
                 echo "Replacing GE DV25 bvals and bvecs"

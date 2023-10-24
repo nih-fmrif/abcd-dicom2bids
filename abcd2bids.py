@@ -58,7 +58,7 @@ TEMP_FILES_DIR = os.path.join(PWD, "temp")
 UNPACK_AND_SETUP = os.path.join(PWD, "src", "unpack_and_setup.sh")
 UNPACKED_FOLDER = os.path.join(PWD, "data")
 MODALITIES = ['anat', 'func', 'dwi']
-SESSIONS = ['baseline_year_1_arm_1', '2_year_follow_up_y_arm_1']
+SESSIONS = ['baseline_year_1_arm_1', '2_year_follow_up_y_arm_1', '4_year_follow_up_arm_1', '6_year_follow_up_arm_1']
 
 
 def main():
@@ -81,6 +81,7 @@ def main():
     # Run all steps sequentially, starting at the one specified by the user
     started = False
     for step in STEP_NAMES:
+        print(step)
         if step == cli_args.start_at:
             started = True
         if started:
@@ -762,7 +763,7 @@ def validate_bids(cli_args):
     """
     try:
         if cli_args.sif_path:
-            subprocess.check_call(("singularity", "run", "-B", cli_args.output + ":/data", 
+            subprocess.check_call(("/usr/local/current/singularity/3.10.5/bin/singularity", "run", "-B", cli_args.output + ":/data", 
                                    cli_args.sif_path, "/data"))
         else:
             if cli_args.docker_cmd:

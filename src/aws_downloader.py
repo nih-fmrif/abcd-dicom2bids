@@ -20,7 +20,7 @@ prog_descrip='AWS downloader'
 QC_CSV = os.path.join(os.path.dirname(os.path.dirname(
                     os.path.abspath(__file__))), "spreadsheets",
                     "abcd_fastqc01_reformatted.csv") 
-YEARS = ['baseline_year_1_arm_1', '2_year_follow_up_y_arm_1']
+YEARS = ['baseline_year_1_arm_1', '2_year_follow_up_y_arm_1', '4_year_follow_up_arm_1', '6_year_follow_up_arm_1']
 MODALITIES = ['anat', 'func', 'dwi']
 
 def generate_parser(parser=None):
@@ -122,7 +122,7 @@ def main(argv=sys.argv):
         writer = csv.writer(f)
 
         # Read csv as pandas dataframe, drop duplicate entries, sort, and group by subject/visit
-        series_df = pd.read_csv(series_csv)
+        series_df = pd.read_csv(series_csv, dtype=str)
 
         # If subject list is provided
         # Get list of all unique subjects if not provided
@@ -137,8 +137,17 @@ def main(argv=sys.argv):
             pguid = 'NDAR_INV' + ''.join(uid)
             bids_id = 'sub-NDARINV' + ''.join(uid)
             subject_df = series_df[series_df['pGUID'] == pguid]
-            for year in year_list:
+            if year_list!=YEARS :
+                subject_year_list=year_list
+            else :
+                subject_year_list=list(set(subject_df['EventName']))
+            for year in subject_year_list:
                 sub_ses_df = subject_df[subject_df['EventName'] == year]
+                print("year: ", year)
+                print("year df: ", sub_ses_df)
+                print(sub_ses_df.empty)
+                #if sub_ses_df.empty :
+                #    continue
                 sub_pass_QC_df = sub_ses_df # changed to include all data, not just data with QC == 1.0
                 file_paths = []
                 ### Logging information
@@ -305,8 +314,9 @@ def add_dwi_paths(passed_QC_group, file_paths):
             if DTI_FM_AP_df.empty:
                 return (file_paths, 0)
             DTI_FM_PA_df = passed_QC_group.loc[passed_QC_group['image_description'] == 'ABCD-Diffusion-FM-PA']
-            DTI_FM_df = DTI_FM_AP_df.tail(1)
-            DTI_FM_df = DTI_FM_df.append(DTI_FM_PA_df.tail(1))
+            #DTI_FM_df = DTI_FM_AP_df.tail(1)
+            #DTI_FM_df = DTI_FM_df.append(DTI_FM_PA_df.tail(1))
+            DTI_FM_df = pd.concat([DTI_FM_AP_df.tail(1), DTI_FM_PA_df.tail(1)], ignore_index=True)
         if not DTI_FM_df.empty:
             for file_path in DTI_df['image_file']:
                 file_paths += [file_path]

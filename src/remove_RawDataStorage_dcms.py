@@ -10,7 +10,7 @@ from subprocess import Popen, PIPE
 def check_for_RawDataStorage(dcm_dir):
     # Check if the first dicom is raw storage
     dcm1 = sorted(os.listdir(dcm_dir))[0]
-    dump_cmd = ["dcmdump", "--search", "0002,0002", os.path.join(dcm_dir, dcm1)]
+    dump_cmd = ["/data/NIMH_scratch/zwallymi/abcd-dicom2bids/abcd_env/dcmtk-3.6.6-linux-x86_64-static/bin/dcmdump", "--search", "0002,0002", os.path.join(dcm_dir, dcm1)]
     p = Popen(dump_cmd, stdout=PIPE, stderr=PIPE)
     output, err = p.communicate()
     output = output.decode()
