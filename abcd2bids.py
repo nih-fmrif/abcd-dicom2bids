@@ -10,8 +10,8 @@ Updated 2020-01-15
 ##################################
 #
 # Wrapper for ABCD DICOM to BIDS pipeline that can be run from the command line
-#    1. Imports data, QC's it, and exports ABCD_good_and_bad_series_table.csv
-#    2. Runs good_bad_series_parser.py to download ABCD data using .csv table
+#    1. Imports data, QC's it, and exports abcd_fastqc01_reformatted.csv
+#    2. Runs aws_downloader.py to download ABCD data using .csv table
 #    3. Runs unpack_and_setup.sh to unpack/setup the downloaded ABCD data
 #    4. Runs correct_jsons.py to conform data to official BIDS standards
 #    5. Runs BIDS validator on unpacked/setup data using Docker
@@ -32,7 +32,7 @@ import subprocess
 import sys
 
 # Constant: List of function names of steps 1-5 in the list above
-STEP_NAMES = ["create_good_and_bad_series_table", "download_nda_data",
+STEP_NAMES = ["reformat_fastqc_spreadsheet", "download_nda_data",
               "unpack_and_setup", "correct_jsons", "validate_bids"]
 
 # Get path to directory containing abcd2bids.py
@@ -47,10 +47,12 @@ except (OSError, AssertionError):
 CONFIG_FILE = os.path.join(os.path.expanduser("~"), ".abcd2bids", "config.ini")
 CORRECT_JSONS = os.path.join(PWD, "src", "correct_jsons.py")
 DOWNLOAD_FOLDER = os.path.join(PWD, "raw")
-NDA_AWS_TOKEN_MAKER = os.path.join(PWD, "src", "nda_aws_token_maker.py")
+#NDA_AWS_TOKEN_MAKER = os.path.join(PWD, "src", "nda_aws_token_maker.py")
+NDA_AWS_TOKEN_MAKER = os.path.join(PWD, "src", "ndar_update_keys.py")
+DOWNLOAD_CMD_PATH = os.path.join(os.path.expanduser("~"), ".local", "bin", "downloadcmd")
 
 SERIES_TABLE_PARSER = os.path.join(PWD, "src", "aws_downloader.py")
-SPREADSHEET_DOWNLOAD = os.path.join(PWD, "spreadsheets", "ABCD_good_and_bad_series_table.csv")
+SPREADSHEET_DOWNLOAD = os.path.join(PWD, "temp", "abcd_fastqc01_reformatted.csv")
 SPREADSHEET_QC = os.path.join(PWD, "spreadsheets", "abcd_fastqc01.txt")
 TEMP_FILES_DIR = os.path.join(PWD, "temp")
 UNPACK_AND_SETUP = os.path.join(PWD, "src", "unpack_and_setup.sh")
@@ -74,7 +76,7 @@ def main():
 
     # Before running any different scripts, validate user's NDA credentials and
     # use them to make NDA token
-    make_nda_token(cli_args)
+    #make_nda_token(cli_args)
 
     # Run all steps sequentially, starting at the one specified by the user
     started = False
@@ -172,16 +174,6 @@ def get_cli_args():
               "data into the {} folder. A folder will be created at the given "
               "path if one does not already exist.".format(UNPACKED_FOLDER))
     )
-    parser.add_argument(
-        "-p",
-        "--password",
-        type=str,
-        help=("NDA password. Adding this will create a new config "
-              "file or overwrite an old one. Unless this is added or a config "
-              "file exists with the user's NDA credentials, the user will be "
-              "prompted for them. If this is added and --username is not, "
-              "then the user will be prompted for their NDA username.")
-    )
 
     # Optional: Get QC spreadsheet
     parser.add_argument(
@@ -192,6 +184,17 @@ def get_cli_args():
         help=("Path to Quality Control (QC) spreadsheet file downloaded from "
               "the NDA. By default, this script will use {} as the QC "
               "spreadsheet.".format(SPREADSHEET_QC))
+    )
+    parser.add_argument(
+        "-p",
+        "--package_id",
+        required=True,
+        help=("ID of the data package that is created via the NDA")
+    )
+    parser.add_argument(
+        "--downloadcmd",
+        default=DOWNLOAD_CMD_PATH,
+        help=("Path to downloadcmd executable")
     )
 
     # Optional: Subject list
@@ -382,7 +385,24 @@ def try_to_create_and_prep_directory_at(folder_path, default_path, parser):
     if os.path.abspath(folder_path) != default:
         for each_file in os.scandir(default):
             if not each_file.is_dir():
-                shutil.copy2(each_file.path, folder_path)
+                #shutil.copy2(each_file.path, folder_path)
+                try:
+                    shutil.copyfile(each_file.path, os.path.join(folder_path, each_file.name))
+                # If source and destination are same
+                except shutil.SameFileError:
+                    print("Source and destination represents the same file.")
+                 
+                # If destination is a directory.
+                except IsADirectoryError:
+                    print("Destination is a directory.")
+                 
+                # If there is any permission issue
+                except PermissionError:
+                    print("Permission denied.")
+                 
+                # For other errors
+                except:
+                    print("Error occurred while copying file.")
 
 
 def set_to_cleanup_on_crash(temp_dir):
@@ -436,7 +456,7 @@ def make_nda_token(args):
     """
     # If config file with NDA credentials exists, then get credentials from it,
     # unless user entered other credentials to make a new config file
-    if not args.username and not args.password and os.path.exists(args.config):
+    if not args.username and os.path.exists(args.config):
         username, password = get_nda_credentials_from(args.config)
 
     # Otherwise get NDA credentials from user & save them in a new config file,
@@ -450,10 +470,7 @@ def make_nda_token(args):
             username = input("\nEnter your NIMH Data Archives username: ")
 
         # If NDA password was a CLI arg, use it; otherwise prompt user for it
-        if args.password:
-            password = args.password
-        else:
-            password = getpass("Enter your NIMH Data Archives password: ")
+        password = getpass("Enter your NIMH Data Archives password: ")
             
         make_config_file(args.config, username, password)
 
@@ -461,8 +478,9 @@ def make_nda_token(args):
     token_call_exit_code = subprocess.call((
         "python3",
         NDA_AWS_TOKEN_MAKER,
-        username,
-        password
+        "--username", username,
+        "--password", password,
+        "--config-dir", args.temp
     ))
 
     # If NDA credentials are invalid, tell user so without printing password.
@@ -528,9 +546,9 @@ def make_config_file(config_filepath, username, password):
     subprocess.check_call(("chmod", "700", config_filepath))
 
 
-def create_good_and_bad_series_table(cli_args):
+def reformat_fastqc_spreadsheet(cli_args):
     """
-    Create good_and_bad_series_table.csv by merging imaging data with QC data
+    Create abcd_fastqc01_reformatted.csv by reformatting the original fastqc01.txt spreadsheet.
     :param cli_args: argparse namespace containing all CLI arguments.
     :return: N/A
     """   
@@ -564,17 +582,35 @@ def create_good_and_bad_series_table(cli_args):
         """
         return row.ftq_series_id.split("_")[2]
 
-    # Add missing column by splitting data from other column
+    # Add extra column by splitting data from other column
     image_desc_col = qc_data.apply(get_img_desc, axis=1)
-    
     qc_data = qc_data.assign(**{'image_description': image_desc_col.values})
+
+    def get_img_timestamp(row):
+        """
+        :param row: pandas.Series with a column called "ftq_series_id"
+        :return: String with the image_description of that row
+        """
+        return row.ftq_series_id.split("_")[3]
+
+    # Add extra column by splitting data from other column
+    image_timestamp_col = qc_data.apply(get_img_timestamp, axis=1)
+    qc_data = qc_data.assign(**{'image_timestamp': image_timestamp_col.values})
+
+    # remove "Replaced" rows from download list
+    qc_data = qc_data[qc_data['ftq_recall_reason'] != 'Replaced']
 
     # Change column names for good_bad_series_parser to use; then save to .csv
     qc_data.rename({
         "ftq_usable": "QC", "subjectkey": "pGUID", "visit": "EventName",
         "abcd_compliant": "ABCD_Compliant", "interview_age": "SeriesTime",
         "comments_misc": "SeriesDescription", "file_source": "image_file"
-    }, axis="columns").to_csv(SPREADSHEET_DOWNLOAD, index=False)
+    }, axis="columns").sort_values([
+        'pGUID',
+        'EventName',
+        'image_description',
+        'image_timestamp'
+    ]).to_csv(SPREADSHEET_DOWNLOAD, index=False)
 
 
 def fix_split_col(qc_df):
@@ -622,10 +658,13 @@ def download_nda_data(cli_args):
     print(cli_args.modalities)
     subprocess.check_call(("python3", 
                             SERIES_TABLE_PARSER,
+                            "--qc-csv", os.path.join(cli_args.temp, os.path.basename(SPREADSHEET_DOWNLOAD)),
                             "--download-dir", cli_args.download, 
                             "--subject-list", cli_args.subject_list,
                             "--sessions", ','.join(cli_args.sessions),
-                            "--modalities", ','.join(cli_args.modalities)))
+                            "--modalities", ','.join(cli_args.modalities),
+                            "--downloadcmd", cli_args.downloadcmd,
+                            "--package-id", cli_args.package_id))
 
 
 def unpack_and_setup(args):
@@ -638,73 +677,57 @@ def unpack_and_setup(args):
     :return: N/A
     """
 
+    # Create list of all subject directories for setup
+    subject_dir_paths = {}
     if args.subject_list:
         f = open(args.subject_list, 'r')
         x = f.readlines()
         f.close
         subject_list = [sub.strip() for sub in x]
         for subject in subject_list:
-            subject_dir = os.path.join(args.download, subject)
+            uid_start = "INV"
+            uid = subject.split(uid_start, 1)[1]
+            bids_pid = 'sub-NDARINV' + ''.join(uid)
+            subject_dir = os.path.join(args.download, bids_pid)
             if os.path.isdir(subject_dir):
-                for session_dir in os.scandir(subject_dir):
-                    if session_dir.is_dir():
-                        for tgz in os.scandir(session_dir.path):
-                            if tgz:
-
-                                # Get session ID from some (arbitrary) .tgz file in
-                                # session folder
-                                session_name = tgz.name.split("_")[1]
-
-                                # Unpack/setup the data for this subject/session
-                                subprocess.check_call((
-                                    UNPACK_AND_SETUP,
-                                    subject,
-                                    "ses-" + session_name,
-                                    session_dir.path,
-                                    args.output,
-                                    args.temp,
-                                    args.fsl_dir,
-                                    args.mre_dir
-                                ))
-
-                                # If user said to, delete all the raw downloaded
-                                # files for each subject after that subject's data
-                                # has been converted and copied
-                                if args.remove:
-                                    shutil.rmtree(os.path.join(args.download,
-                                                               subject))
-                                break
+                subject_dir_paths[bids_pid] = subject_dir
     else:
         for subject in os.scandir(args.download):
             if subject.is_dir():
-                for session_dir in os.scandir(subject.path):
-                    if session_dir.is_dir():
-                        for tgz in os.scandir(session_dir.path):
-                            if tgz:
+                subject_dir_paths[subject.name] = subject.path
 
-                                # Get session ID from some (arbitrary) .tgz file in
-                                # session folder
-                                session_name = tgz.name.split("_")[1]
-				
-                                # Unpack/setup the data for this subject/session
-                                subprocess.check_call((
-                                    UNPACK_AND_SETUP,
-                                    subject.name,
-                                    "ses-" + session_name,
-                                    session_dir.path,
-                                    args.output,
-                                    args.temp,
-                                    args.fsl_dir,
-                                    args.mre_dir
-                                ))
+    # Loop through each subject and setup all sessions for that subject
+    for subject, subject_dir in subject_dir_paths.items():
+        for session_dir in os.scandir(subject_dir):
+            if session_dir.is_dir():
+                tgz_dir = os.path.join(session_dir.path, 'image03')
+                for tgz in os.scandir(tgz_dir):
+                    if tgz:
+                        # Get session ID from some (arbitrary) .tgz file in
+                        # session folder
+                        session_name = tgz.name.split("_")[1]
+                        print('Unpacking and setting up tgzs for {} {} located here: {}'.format(subject, session_name, tgz_dir))
+                        print("Running: ", UNPACK_AND_SETUP, subject, "ses-" + session_name, session_dir.path, args.output, args.temp, args.fsl_dir, args.mre_dir)
 
-                                # If user said to, delete all the raw downloaded
-                                # files for each subject after that subject's data
-                                # has been converted and copied
-                                if args.remove:
-                                    shutil.rmtree(os.path.join(args.download,
-                                                               subject.name))
-                                break
+                        # Unpack/setup the data for this subject/session
+                        subprocess.check_call((
+                            UNPACK_AND_SETUP,
+                            subject,
+                            "ses-" + session_name,
+                            session_dir.path,
+                            args.output,
+                            args.temp,
+                            args.fsl_dir,
+                            args.mre_dir
+                        ))
+
+                        # If user said to, delete all the raw downloaded
+                        # files for each subject after that subject's data
+                        # has been converted and copied
+                        if args.remove:
+                            shutil.rmtree(os.path.join(args.download,
+                                                       subject))
+                        break
 
 
 def correct_jsons(cli_args):
