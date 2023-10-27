@@ -200,7 +200,7 @@ def main(argv=sys.argv):
                     f.write('\n'.join(str(s3_link) for s3_link in file_paths))
 
                 # Download s3 links from txt file with downloadcmd
-                subprocess.run([os.path.expanduser(args.downloadcmd), '-dp', args.package_id, '-t', s3_links_file, '-d', tgz_dir])
+                subprocess.run([os.path.expanduser(args.downloadcmd), '-dp', args.package_id, '-t', s3_links_file, '-d', tgz_dir, '--workerThreads', '4'])
 
                 
     print("There are %s subject visits" % num_sub_visits)

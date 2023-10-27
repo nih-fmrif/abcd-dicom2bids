@@ -14,8 +14,10 @@ data/*/
 *.txt
 *delete*
 *.csv
-
-
+abcd_env/
+env_setup/
+src/subtraction.ipynb
+src/fast_track_dl_check.ipynb
 
 sbatch_abcd2bids.sh
 validator_latest.sif

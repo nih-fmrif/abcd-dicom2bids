@@ -1,3 +1,6 @@
+import os
+import pandas as pd
+
 def ftq_map(qc, directory):
     '''
     Given a list of ftq_series_ids from the abcd_fastqc01.txt file
