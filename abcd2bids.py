@@ -702,6 +702,8 @@ def unpack_and_setup(args):
         for session_dir in os.scandir(subject_dir):
             if session_dir.is_dir():
                 tgz_dir = os.path.join(session_dir.path, 'image03')
+                if not os.path.isdir(tgz_dir):
+                    continue
                 for tgz in os.scandir(tgz_dir):
                     if tgz:
                         # Get session ID from some (arbitrary) .tgz file in
