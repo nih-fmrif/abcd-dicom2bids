@@ -1,7 +1,7 @@
-import os
-import pandas as pd
-
 def ftq_map(qc, directory):
+    import os
+    import pandas as pd
+
     '''
     Given a list of ftq_series_ids from the abcd_fastqc01.txt file
     Return an expected BIDS directory and file outputs, as well as
