@@ -14,10 +14,11 @@ from ftq_map import ftq_map
 # set pandas options
 pd.set_option('display.max_columns', None)
 
-# input files
-top = '/data/ABCD_DSST/ABCD_BIDS/fast_track/rawdata'
-qc_file = '/data/NIMH_scratch/zwallymi/earlea-d2b/fastqc/20231024_abcd_fastqc01.txt'
-output_folder = '/data/NIMH_scratch/zwallymi/earlea-d2b/fastqc'
+# inputs
+top = '/data/NIMH_scratch/zwallymi/earlea-d2b/outputs/round_03'
+qc_file = '/data/NIMH_scratch/zwallymi/earlea-d2b/fastqc/round_03/abcd_fastqc01_pre_conversion.txt'
+output_folder = '/data/NIMH_scratch/zwallymi/earlea-d2b/fastqc/round_04'
+status = os.makedirs(output_folder, exist_ok=True)
 
 # read in the whole messy abcd_fastqc01.txt file
 qc_og = pd.read_csv(qc_file, low_memory=False, sep='\t')

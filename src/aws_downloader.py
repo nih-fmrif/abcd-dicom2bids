@@ -200,6 +200,7 @@ def main(argv=sys.argv):
                     f.write('\n'.join(str(s3_link) for s3_link in file_paths))
 
                 # Download s3 links from txt file with downloadcmd
+                print(' '.join([os.path.expanduser(args.downloadcmd), '-dp', args.package_id, '-t', s3_links_file, '-d', tgz_dir, '--workerThreads', '4']))
                 subprocess.run([os.path.expanduser(args.downloadcmd), '-dp', args.package_id, '-t', s3_links_file, '-d', tgz_dir, '--workerThreads', '4'])
 
                 
