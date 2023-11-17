@@ -90,6 +90,9 @@ fi
 mkdir ${TempSubjectDir}/BIDS_unprocessed
 cp ${ABCD2BIDS_DIR}/dataset_description.json ${TempSubjectDir}/BIDS_unprocessed/
 echo ${participant}
+
+export PATH="/data/NIMH_scratch/zwallymi/abcd-dicom2bids/abcd_env/bin:"${PATH}
+
 echo `date`" :RUNNING dcm2bids"
 dcm2bids -d ${TempSubjectDir}/DCMs/${SUB} -p ${participant} -s ${session} -c ${ABCD2BIDS_DIR}/abcd_dcm2bids.conf -o ${TempSubjectDir}/BIDS_unprocessed --forceDcm2niix --clobber
 
@@ -112,13 +115,10 @@ if [ -e ${TempSubjectDir}/DCMs/${SUB}/${VISIT}/dwi ]; then
                 cp `dirname $0`/ABCD_Release_2.0_Diffusion_Tables/GE_bvals_DV25.txt ${orig_bval}
                 echo cp `dirname $0`/ABCD_Release_2.0_Diffusion_Tables/GE_bvecs_DV25.txt ${orig_bvec}
                 cp `dirname $0`/ABCD_Release_2.0_Diffusion_Tables/GE_bvecs_DV25.txt ${orig_bvec}
-            elif dcmdump --search 0018,1020 ${first_dcm} 2>/dev/null | grep -q DV26; then
-                echo "Replacing GE DV26 bvals and bvecs"
+            else
+                echo "Replacing GE bvals and bvecs for non-DV25 version"
                 cp `dirname $0`/ABCD_Release_2.0_Diffusion_Tables/GE_bvals_DV26.txt ${orig_bval}
                 cp `dirname $0`/ABCD_Release_2.0_Diffusion_Tables/GE_bvecs_DV26.txt ${orig_bvec}
-            else
-                echo "ERROR setting up DWI: GE software version not recognized"
-                exit
             fi
         elif [[ `dcmdump --search 0008,0070 ${first_dcm} 2>/dev/null` == *Philips* ]]; then
             software_version=`dcmdump --search 0018,1020 ${first_dcm} 2>/dev/null | awk '{print $3}'`
