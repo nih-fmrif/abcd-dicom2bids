@@ -27,7 +27,7 @@ def check_for_RawDataStorage(dcm_dir):
 
 def rm_RawData_dcms(dcm_dir, dcm1):
     # Identify number of temporal positions (0020,0105) and number of slices per time point (should be 60)
-    dump_cmd = ["dcmdump", "--search", "2001,1081", os.path.join(dcm_dir, dcm1)]
+    dump_cmd = ["/data/NIMH_scratch/zwallymi/abcd-dicom2bids/abcd_env/dcmtk-3.6.6-linux-x86_64-static/bin/dcmdump", "--search", "2001,1081", os.path.join(dcm_dir, dcm1)]
     p = Popen(dump_cmd, stdout=PIPE, stderr=PIPE)
     output, err = p.communicate()
     output = output.decode()

@@ -18,7 +18,7 @@
 # If output folder is given as a command line arg, get it; otherwise use
 # ./data as the default. Added by Greg 2019-06-06
 if [ "x$4" = "x" ]; then
-    ROOT_BIDSINPUT=./data
+    ROOT_BIDSINPUT=/data/NIMH_scratch/zwallymi/earlea-d2b/outputs/474_sessions
 else
     ROOT_BIDSINPUT=$4
 fi
@@ -26,21 +26,25 @@ fi
 # If temp files folder is given as a command line arg, get it; otherwise use
 # ./temp as the default. Added by Greg 2019-06-07
 if [ "x$5" = "x" ]; then
-    ScratchSpaceDir=./temp
+    ScratchSpaceDir=/data/NIMH_scratch/zwallymi/earlea-d2b/outputs/scratch
 else
     ScratchSpaceDir=$5
 fi
 
-# Get FSL and MRE directory paths from command line; added by Greg Conan on
-# 2019-06-10
-if [[ ! "x$6" = "x" && ! "x$7" = "x" ]]; then
-    FSL_DIR=$6
-    MRE_DIR=$7
+# Set FSL and MRE directory paths on Biowulf systems
+if [[ "x${FSLDIR}" = "x" ]] ; then
+    module load fsl
 fi
+
+FSL_DIR=${FSLDIR}
+MRE_DIR=/data/NIMH_scratch/zwallymi/earlea-d2b/fork/env_setup/MCR_v9.1
 
 SUB=$1 # Full BIDS formatted subject ID (sub-SUBJECTID)
 VISIT=$2 # Full BIDS formatted session ID (ses-SESSIONID)
-TGZDIR=$3 # Path to directory containing all .tgz for this subject's session
+PREFIX=$3 # downloaded TGZ filename prefix
+
+# Path to directory containing all .tgz for this subject's session
+TGZDIR=/data/NIMH_scratch/zwallymi/earlea-d2b/outputs/test_474_sessions
 
 ABCD2BIDS_DIR="$(dirname `dirname $0`)"
 
@@ -65,7 +69,7 @@ mkdir -p ${TempSubjectDir}
 
 # copy all tgz to the scratch space dir
 echo `date`" :COPYING TGZs TO SCRATCH: ${TempSubjectDir}"
-cp ${TGZDIR}/image03/* ${TempSubjectDir}
+cp ${TGZDIR}/image03/${PREFIX}*.tgz ${TempSubjectDir}/
 
 # unpack tgz to ABCD_DCMs directory
 mkdir ${TempSubjectDir}/DCMs
@@ -97,57 +101,59 @@ echo `date`" :RUNNING dcm2bids"
 dcm2bids -d ${TempSubjectDir}/DCMs/${SUB} -p ${participant} -s ${session} -c ${ABCD2BIDS_DIR}/abcd_dcm2bids.conf -o ${TempSubjectDir}/BIDS_unprocessed --forceDcm2niix --clobber
 
 
-# replace bvals and bvecs with files supplied by the NDA
-if [ -e ${TempSubjectDir}/DCMs/${SUB}/${VISIT}/dwi ]; then
-    first_dcm=`ls ${TempSubjectDir}/DCMs/${SUB}/${VISIT}/dwi/*/*.dcm | head -n1`
-    echo "Replacing bvals and bvecs with files supplied by the NDA"
-    for dwi in ${TempSubjectDir}/BIDS_unprocessed/${SUB}/${VISIT}/dwi/${SUB}_${VISIT}*.nii.gz; do
-        orig_bval=`echo $dwi | sed 's|.nii.gz|.bval|'`
-        orig_bvec=`echo $dwi | sed 's|.nii.gz|.bvec|'`
+# # replace bvals and bvecs with files supplied by the NDA
+# if [ -e ${TempSubjectDir}/DCMs/${SUB}/${VISIT}/dwi ]; then
+#     first_dcm=`ls ${TempSubjectDir}/DCMs/${SUB}/${VISIT}/dwi/*/*.dcm | head -n1`
+#     echo "Replacing bvals and bvecs with files supplied by the NDA"
+#     for dwi in ${TempSubjectDir}/BIDS_unprocessed/${SUB}/${VISIT}/dwi/${SUB}_${VISIT}*.nii.gz; do
+#         orig_bval=`echo $dwi | sed 's|.nii.gz|.bval|'`
+#         orig_bvec=`echo $dwi | sed 's|.nii.gz|.bvec|'`
         
-        export PATH="/data/NIMH_scratch/zwallymi/abcd-dicom2bids/abcd_env/dcmtk-3.6.6-linux-x86_64-static/bin":$PATH
-        #echo `dcmdump --search 0008,0070 ${first_dcm}`
+#         export PATH="/data/NIMH_scratch/zwallymi/abcd-dicom2bids/abcd_env/dcmtk-3.6.6-linux-x86_64-static/bin":$PATH
+#         #echo `dcmdump --search 0008,0070 ${first_dcm}`
 
-        if [[ `dcmdump --search 0008,0070 ${first_dcm} 2>/dev/null` == *GE* ]]; then 
-            if dcmdump --search 0018,1020 ${first_dcm} 2>/dev/null | grep -q DV25; then
-                echo "Replacing GE DV25 bvals and bvecs"
-                echo cp `dirname $0`/ABCD_Release_2.0_Diffusion_Tables/GE_bvals_DV25.txt ${orig_bval}
-                cp `dirname $0`/ABCD_Release_2.0_Diffusion_Tables/GE_bvals_DV25.txt ${orig_bval}
-                echo cp `dirname $0`/ABCD_Release_2.0_Diffusion_Tables/GE_bvecs_DV25.txt ${orig_bvec}
-                cp `dirname $0`/ABCD_Release_2.0_Diffusion_Tables/GE_bvecs_DV25.txt ${orig_bvec}
-            else
-                echo "Replacing GE bvals and bvecs for non-DV25 version"
-                cp `dirname $0`/ABCD_Release_2.0_Diffusion_Tables/GE_bvals_DV26.txt ${orig_bval}
-                cp `dirname $0`/ABCD_Release_2.0_Diffusion_Tables/GE_bvecs_DV26.txt ${orig_bvec}
-            fi
-        elif [[ `dcmdump --search 0008,0070 ${first_dcm} 2>/dev/null` == *Philips* ]]; then
-            software_version=`dcmdump --search 0018,1020 ${first_dcm} 2>/dev/null | awk '{print $3}'`
-            if [[ ${software_version} == *5.3* ]]; then
-                echo "Replacing Philips s1 bvals and bvecs"
-                cp `dirname $0`/ABCD_Release_2.0_Diffusion_Tables/Philips_bvals_s1.txt ${orig_bval}
-                cp `dirname $0`/ABCD_Release_2.0_Diffusion_Tables/Philips_bvecs_s1.txt ${orig_bvec}
-            elif [[ ${software_version} == *5.4* ]]; then
-                echo "Replacing Philips s2 bvals and bvecs"
-                cp `dirname $0`/ABCD_Release_2.0_Diffusion_Tables/Philips_bvals_s2.txt ${orig_bval}
-                cp `dirname $0`/ABCD_Release_2.0_Diffusion_Tables/Philips_bvecs_s2.txt ${orig_bvec}
-            else
-                echo "ERROR setting up DWI: Philips software version " ${software_version} " not recognized"
-                exit
-            fi
-        elif [[ `dcmdump --search 0008,0070 ${first_dcm} 2>/dev/null` == *SIEMENS* ]]; then
-            echo "Replacing Siemens bvals and bvecs"
-            cp `dirname $0`/ABCD_Release_2.0_Diffusion_Tables/Siemens_bvals.txt ${orig_bval}
-            cp `dirname $0`/ABCD_Release_2.0_Diffusion_Tables/Siemens_bvecs.txt ${orig_bvec}
-        else
-            echo "ERROR setting up DWI: Manufacturer not recognized"
-            exit
-        fi
-    done
-fi
+#         if [[ `dcmdump --search 0008,0070 ${first_dcm} 2>/dev/null` == *GE* ]]; then 
+#             if dcmdump --search 0018,1020 ${first_dcm} 2>/dev/null | grep -q DV25; then
+#                 echo "Replacing GE DV25 bvals and bvecs"
+#                 echo cp `dirname $0`/ABCD_Release_2.0_Diffusion_Tables/GE_bvals_DV25.txt ${orig_bval}
+#                 cp `dirname $0`/ABCD_Release_2.0_Diffusion_Tables/GE_bvals_DV25.txt ${orig_bval}
+#                 echo cp `dirname $0`/ABCD_Release_2.0_Diffusion_Tables/GE_bvecs_DV25.txt ${orig_bvec}
+#                 cp `dirname $0`/ABCD_Release_2.0_Diffusion_Tables/GE_bvecs_DV25.txt ${orig_bvec}
+#             else
+#                 echo "Replacing GE bvals and bvecs for non-DV25 version"
+#                 cp `dirname $0`/ABCD_Release_2.0_Diffusion_Tables/GE_bvals_DV26.txt ${orig_bval}
+#                 cp `dirname $0`/ABCD_Release_2.0_Diffusion_Tables/GE_bvecs_DV26.txt ${orig_bvec}
+#             fi
+#         elif [[ `dcmdump --search 0008,0070 ${first_dcm} 2>/dev/null` == *Philips* ]]; then
+#             software_version=`dcmdump --search 0018,1020 ${first_dcm} 2>/dev/null | awk '{print $3}'`
+#             if [[ ${software_version} == *5.3* ]]; then
+#                 echo "Replacing Philips s1 bvals and bvecs"
+#                 cp `dirname $0`/ABCD_Release_2.0_Diffusion_Tables/Philips_bvals_s1.txt ${orig_bval}
+#                 cp `dirname $0`/ABCD_Release_2.0_Diffusion_Tables/Philips_bvecs_s1.txt ${orig_bvec}
+#             elif [[ ${software_version} == *5.4* ]]; then
+#                 echo "Replacing Philips s2 bvals and bvecs"
+#                 cp `dirname $0`/ABCD_Release_2.0_Diffusion_Tables/Philips_bvals_s2.txt ${orig_bval}
+#                 cp `dirname $0`/ABCD_Release_2.0_Diffusion_Tables/Philips_bvecs_s2.txt ${orig_bvec}
+#             else
+#                 echo "ERROR setting up DWI: Philips software version " ${software_version} " not recognized"
+#                 exit
+#             fi
+#         elif [[ `dcmdump --search 0008,0070 ${first_dcm} 2>/dev/null` == *SIEMENS* ]]; then
+#             echo "Replacing Siemens bvals and bvecs"
+#             cp `dirname $0`/ABCD_Release_2.0_Diffusion_Tables/Siemens_bvals.txt ${orig_bval}
+#             cp `dirname $0`/ABCD_Release_2.0_Diffusion_Tables/Siemens_bvecs.txt ${orig_bvec}
+#         else
+#             echo "ERROR setting up DWI: Manufacturer not recognized"
+#             exit
+#         fi
+#     done
+# fi
 
 
 if [[ -e ${TempSubjectDir}/BIDS_unprocessed/${SUB}/${VISIT}/func ]]; then
     echo `date`" :CHECKING BIDS ORDERING OF EPIs"
+    echo "${ABCD2BIDS_DIR}/src/run_order_fix.py ${TempSubjectDir}/BIDS_unprocessed ${TempSubjectDir}/bids_order_error.json ${TempSubjectDir}/bids_order_map.json --all --subject ${SUB}"
+
     i=0
     while [ "`${ABCD2BIDS_DIR}/src/run_order_fix.py ${TempSubjectDir}/BIDS_unprocessed ${TempSubjectDir}/bids_order_error.json ${TempSubjectDir}/bids_order_map.json --all --subject ${SUB}`" != ${SUB} ] && [ $i -ne 3 ]; do
         ((i++))
@@ -160,6 +166,7 @@ if [[ -e ${TempSubjectDir}/BIDS_unprocessed/${SUB}/${VISIT}/func ]]; then
         exit
     fi
 fi
+
 # select best fieldmap and update sidecar jsons
 echo `date`" :RUNNING SEFM SELECTION AND EDITING SIDECAR JSONS"
 if [ -d ${TempSubjectDir}/BIDS_unprocessed/${SUB}/${VISIT}/fmap ]; then
