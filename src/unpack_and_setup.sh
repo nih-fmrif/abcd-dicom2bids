@@ -18,14 +18,8 @@
 # loading correct version modules
 module load jq/1.6
 module load pigz/2.7
-module load singularity/3.10.5
 module load fsl/6.0.5/fsl
 module load python
-
-# loading dependencies in path
-export PATH="${TEMP_PATH}/scripts/abcd-dicom2bids/abcd_env/dcmtk-3.6.6-linux-x86_64-static/bin":${PATH}
-export PATH="${TEMP_PATH}/scripts/abcd-dicom2bids/abcd_env/bin:"${PATH}
-export PATH="${TEMP_PATH}/scripts/abcd-dicom2bids/abcd_env:"${PATH}
 
 # If output folder is given as a command line arg, get it; otherwise use
 # ./data as the default. Added by Greg 2019-06-06
@@ -38,7 +32,7 @@ fi
 # If temp files folder is given as a command line arg, get it; otherwise use
 # ./temp as the default. Added by Greg 2019-06-07
 if [ "x$5" = "x" ]; then
-    ScratchSpaceDir=/data/NIMH_scratch/zwallymi/earlea-d2b/outputs/scratch
+    ScratchSpaceDir=/lscratch/${SLURM_JOB_ID}
 else
     ScratchSpaceDir=$5
 fi
