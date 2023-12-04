@@ -15,6 +15,18 @@
 # run_order_fix.py (in this repo)
 # sefm_eval_and_json_editor.py (in this repo)
 
+# loading correct version modules
+module load jq/1.6
+module load pigz/2.7
+module load singularity/3.10.5
+module load fsl/6.0.5/fsl
+module load python
+
+# loading dependencies in path
+export PATH="${TEMP_PATH}/scripts/abcd-dicom2bids/abcd_env/dcmtk-3.6.6-linux-x86_64-static/bin":${PATH}
+export PATH="${TEMP_PATH}/scripts/abcd-dicom2bids/abcd_env/bin:"${PATH}
+export PATH="${TEMP_PATH}/scripts/abcd-dicom2bids/abcd_env:"${PATH}
+
 # If output folder is given as a command line arg, get it; otherwise use
 # ./data as the default. Added by Greg 2019-06-06
 if [ "x$4" = "x" ]; then
@@ -39,17 +51,18 @@ fi
 FSL_DIR=${FSLDIR}
 MRE_DIR=/data/NIMH_scratch/zwallymi/earlea-d2b/fork/env_setup/MCR_v9.1
 
-SUB=$1 # Full BIDS formatted subject ID (sub-SUBJECTID)
-VISIT=$2 # Full BIDS formatted session ID (ses-SESSIONID)
-PREFIX=$3 # downloaded TGZ filename prefix
+PREFIX=$1 # downloaded TGZ filename prefix of the format "SUBJECTID_SESSIONID"
 
 # Path to directory containing all .tgz for this subject's session
 TGZDIR=/data/NIMH_scratch/zwallymi/earlea-d2b/outputs/test_474_sessions
 
-ABCD2BIDS_DIR="$(dirname `dirname $0`)"
+ABCD2BIDS_DIR=/data/NIMH_scratch/zwallymi/earlea-d2b/fork
 
-participant=`echo ${SUB} | sed 's|sub-||'`
-session=`echo ${VISIT} | sed 's|ses-||'`
+participant=`echo ${PREFIX} | sed 's|\(.\+\)_\(.\+\)|\1|'`
+session=`echo ${PREFIX} | sed 's|\(.\+\)_\(.\+\)|\2|'`
+
+SUB="sub-${participant}" # Full BIDS formatted subject ID (sub-SUBJECTID)
+VISIT="ses-${session}" # Full BIDS formatted session ID (ses-SESSIONID)
 
 date
 hostname
@@ -69,12 +82,12 @@ mkdir -p ${TempSubjectDir}
 
 # copy all tgz to the scratch space dir
 echo `date`" :COPYING TGZs TO SCRATCH: ${TempSubjectDir}"
-cp ${TGZDIR}/image03/${PREFIX}*.tgz ${TempSubjectDir}/
+cp ${TGZDIR}/image03/${PREFIX}* ${TempSubjectDir}/
 
 # unpack tgz to ABCD_DCMs directory
 mkdir ${TempSubjectDir}/DCMs
 echo `date`" :UNPACKING DCMs: ${TempSubjectDir}/DCMs"
-for tgz in ${TempSubjectDir}/*.tgz; do
+for tgz in ${TempSubjectDir}/*.tgz ; do
     echo $tgz
     tar -xzf ${tgz} -C ${TempSubjectDir}/DCMs
 done
@@ -240,3 +253,14 @@ if [ -d ${TEMPSRCDATA} ] ; then
 fi
 
 echo `date`" :UNPACKING AND SETUP COMPLETE: ${SUB}/${VISIT}"
+
+# clean up intermediary outputs
+echo `date`" :CLEANUP: Cleaning up" &>> ${LOG}
+rm -rf ${TempSubjectDir}/*.tgz
+rm -rf ${TempSubjectDir}/BIDS_unprocessed
+rm -rf ${TempSubjectDir}/DCMs/sub-*/ses-*/*/*/ 
+
+# copy intermediaries back
+echo `date`" :COPY INTERMEDIARIES: Copying intermediary files back" &>> ${LOG}
+mkdir ${ROOT_BIDSINPUT}/${PREFIX}
+rsync -rt ${TempSubjectDir}/* ${ROOT_BIDSINPUT}/${PREFIX}/
