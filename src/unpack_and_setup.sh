@@ -16,10 +16,10 @@
 # sefm_eval_and_json_editor.py (in this repo)
 
 # loading correct version modules
-module load jq/1.6
-module load pigz/2.7
-module load fsl/6.0.5/fsl
-module load python
+module load jq/1.6 &> /dev/null
+module load pigz/2.7 &> /dev/null
+module load fsl/6.0.5/fsl &> /dev/null
+module load python &> /dev/null
 
 # If output folder is given as a command line arg, get it; otherwise use
 # ./data as the default. Added by Greg 2019-06-06
@@ -58,7 +58,7 @@ session=`echo ${PREFIX} | sed 's|\(.\+\)_\(.\+\)|\2|'`
 SUB="sub-${participant}" # Full BIDS formatted subject ID (sub-SUBJECTID)
 VISIT="ses-${session}" # Full BIDS formatted session ID (ses-SESSIONID)
 
-date
+echo `date` ${PREFIX}
 hostname
 echo ${SLURM_JOB_ID}
 echo Running under group: `id -g`
