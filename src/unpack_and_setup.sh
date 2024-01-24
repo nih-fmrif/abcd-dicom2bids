@@ -100,7 +100,7 @@ dcm2bids -d ${TempSubjectDir}/DCMs/${SUB} -p ${participant} -s ${session} -c ${A
 # replace bvals and bvecs with files supplied by the NDA
 if [ -e ${TempSubjectDir}/DCMs/${SUB}/${VISIT}/dwi ]; then
     first_dcm=`ls ${TempSubjectDir}/DCMs/${SUB}/${VISIT}/dwi/*/*.dcm | head -n1`
-    echo "Replacing bvals and bvecs with files supplied by the NDA"
+    echo "Checking the need for replacing bvals and bvecs with files supplied by the NDA"
     for dwi in ${TempSubjectDir}/BIDS_unprocessed/${SUB}/${VISIT}/dwi/${SUB}_${VISIT}*.nii.gz; do
         orig_bval=`echo $dwi | sed 's|.nii.gz|.bval|'`
         orig_bvec=`echo $dwi | sed 's|.nii.gz|.bvec|'`
@@ -115,32 +115,12 @@ if [ -e ${TempSubjectDir}/DCMs/${SUB}/${VISIT}/dwi ]; then
                 cp `dirname $0`/ABCD_Release_2.0_Diffusion_Tables/GE_bvals_DV25.txt ${orig_bval}
                 echo cp `dirname $0`/ABCD_Release_2.0_Diffusion_Tables/GE_bvecs_DV25.txt ${orig_bvec}
                 cp `dirname $0`/ABCD_Release_2.0_Diffusion_Tables/GE_bvecs_DV25.txt ${orig_bvec}
-            else
-                echo "Replacing GE bvals and bvecs for non-DV25 version"
+            elif dcmdump --search 0018,1020 ${first_dcm} 2>/dev/null | grep -q -e DV26 -e RX26 -e DV27 -e RX27 -e DV28 -e RX28; then
+                # Don Hagler at UCSD said GE software versions between DV (and RX) 26 and 28 needed to be replaced by the DV26 BVAL/BVEC files
+                echo "Replacing GE bvals and bvecs for software version after DV25 and before DV29"
                 cp `dirname $0`/ABCD_Release_2.0_Diffusion_Tables/GE_bvals_DV26.txt ${orig_bval}
                 cp `dirname $0`/ABCD_Release_2.0_Diffusion_Tables/GE_bvecs_DV26.txt ${orig_bvec}
             fi
-        elif [[ `dcmdump --search 0008,0070 ${first_dcm} 2>/dev/null` == *Philips* ]]; then
-            software_version=`dcmdump --search 0018,1020 ${first_dcm} 2>/dev/null | awk '{print $3}'`
-            if [[ ${software_version} == *5.3* ]]; then
-                echo "Replacing Philips s1 bvals and bvecs"
-                cp `dirname $0`/ABCD_Release_2.0_Diffusion_Tables/Philips_bvals_s1.txt ${orig_bval}
-                cp `dirname $0`/ABCD_Release_2.0_Diffusion_Tables/Philips_bvecs_s1.txt ${orig_bvec}
-            elif [[ ${software_version} == *5.4* ]]; then
-                echo "Replacing Philips s2 bvals and bvecs"
-                cp `dirname $0`/ABCD_Release_2.0_Diffusion_Tables/Philips_bvals_s2.txt ${orig_bval}
-                cp `dirname $0`/ABCD_Release_2.0_Diffusion_Tables/Philips_bvecs_s2.txt ${orig_bvec}
-            else
-                echo "ERROR setting up DWI: Philips software version " ${software_version} " not recognized"
-                exit
-            fi
-        elif [[ `dcmdump --search 0008,0070 ${first_dcm} 2>/dev/null` == *SIEMENS* ]]; then
-            echo "Replacing Siemens bvals and bvecs"
-            cp `dirname $0`/ABCD_Release_2.0_Diffusion_Tables/Siemens_bvals.txt ${orig_bval}
-            cp `dirname $0`/ABCD_Release_2.0_Diffusion_Tables/Siemens_bvecs.txt ${orig_bvec}
-        else
-            echo "ERROR setting up DWI: Manufacturer not recognized"
-            exit
         fi
     done
 fi
@@ -148,6 +128,8 @@ fi
 
 if [[ -e ${TempSubjectDir}/BIDS_unprocessed/${SUB}/${VISIT}/func ]]; then
     echo `date`" :CHECKING BIDS ORDERING OF EPIs"
+    echo     "${ABCD2BIDS_DIR}/src/run_order_fix.py ${TempSubjectDir}/BIDS_unprocessed ${TempSubjectDir}/bids_order_error.json ${TempSubjectDir}/bids_order_map.json --all --subject ${SUB}"
+
     i=0
     while [ "`${ABCD2BIDS_DIR}/src/run_order_fix.py ${TempSubjectDir}/BIDS_unprocessed ${TempSubjectDir}/bids_order_error.json ${TempSubjectDir}/bids_order_map.json --all --subject ${SUB}`" != ${SUB} ] && [ $i -ne 3 ]; do
         ((i++))
