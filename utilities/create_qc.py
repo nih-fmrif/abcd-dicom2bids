@@ -2,13 +2,12 @@ import pandas
 import pickle
 import re
 
-qc_file = '/data/NIMH_scratch/zwallymi/earlea-d2b/fastqc/20231024_abcd_fastqc01.txt'
+qc_file = '/data/NIMH_scratch/zwallymi/earlea-d2b/fastqc/20240501_abcd_fastqc01.txt'
 mapping_file = '/data/NIMH_scratch/zwallymi/earlea-d2b/fastqc/all/ftq_map_mapping.pkl'
-output_file = '/data/NIMH_scratch/zwallymi/earlea-d2b/fastqc/all/20231024_scans.tsv'
+output_file = '/data/NIMH_scratch/zwallymi/earlea-d2b/fastqc/all/20240501_scans.tsv'
 
 # see other good strings to use for exclusions in subset_data.py
 exclusions = [
-    "DTI",
     "Diffusion-FM",
     "Diffusion-FM-AP",
     "Diffusion-FM-PA",
@@ -60,9 +59,9 @@ mod_lookup = {
 }
 
 temp = pandas.DataFrame(data=zip(
-            ['/'.join([re.sub(r'_.+', '', x[0]), re.sub(r'sub-.+_ses-(baselineYear1Arm1|[246]YearFollowUpYArm1)_.+', r'ses-\1', x[0]), mod_lookup[re.sub(r'.+_(.+)\.nii\.gz', r'\1', x[0])], x[0]]) for x in mapvalues],
+            ['/'.join([re.sub(r'_.+', '', x[0]), re.sub(r'sub-.+_ses-(baselineYear1Arm1|[0-9]{1,2}YearFollowUpYArm1)_.+', r'ses-\1', x[0]), mod_lookup[re.sub(r'.+_(.+)\.nii\.gz', r'\1', x[0])], x[0]]) for x in mapvalues],
             [re.sub(r'_.+', '', x[0]) for x in mapvalues],
-            [re.sub(r'sub-.+_ses-(baselineYear1Arm1|[246]YearFollowUpYArm1)_.+', r'ses-\1', x[0]) for x in mapvalues],
+            [re.sub(r'sub-.+_ses-(baselineYear1Arm1|[0-9]{1,2}YearFollowUpYArm1)_.+', r'ses-\1', x[0]) for x in mapvalues],
             [re.sub(r'.+_(.+)\.nii\.gz', r'\1', x[0]) for x in mapvalues],
             [re.sub(r'.+_(task-[A-z]+)*_.+\.nii\.gz', r'\1', x[0]) if 'task-' in x[0] else 'n/a' for x in mapvalues],
             [re.sub(r'.+_(run-[0-9]+)*_.+\.nii\.gz', r'\1', x[0]) if 'run-' in x[0] else 'n/a' for x in mapvalues],
@@ -97,8 +96,11 @@ final = merged[[
 final['session_id'] = pandas.Categorical(final['session_id'], [
     'ses-baselineYear1Arm1',
     'ses-2YearFollowUpYArm1',
+    'ses-3YearFollowUpYArm1',
     'ses-4YearFollowUpYArm1',
-    'ses-6YearFollowUpYArm1'
+    'ses-6YearFollowUpYArm1',
+    'ses-8YearFollowUpYArm1',
+    'ses-10YearFollowUpYArm1'
     ])
 
 final['modality'] = pandas.Categorical(final['modality'], [
